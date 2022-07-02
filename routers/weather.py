@@ -9,15 +9,17 @@ from fastapi import (
     Header,
     Response,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
 
 from geopy.geocoders import Nominatim
+import pandas as pd
+import plotly.express as px
 
 import requests
 import json
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from schemas.weather import CurrentWeather
 from settings import Settings
@@ -47,7 +49,7 @@ def get_today():
 @router.get(
     "/current/{city}", response_model=CurrentWeather, status_code=status.HTTP_200_OK
 )
-def get_current_temperature(city: str, units: str = "metric"):
+async def get_current_temperature(city: str, units: str = "metric"):
     """
     Get current weather by city
     Optional[units]: default = metric
@@ -68,3 +70,54 @@ def get_current_temperature(city: str, units: str = "metric"):
         wind=data["wind"]["speed"],
     )
     return weather
+
+
+@router.get("/statistic/json/{city}", status_code=status.HTTP_200_OK)
+async def get_stat_json_city(city: str, units: str = "metric"):
+    """
+    Get weather forecast for next 5 days
+    with every 3 hours
+    """
+    location = geolocator.geocode(city)
+    response = requests.post(
+        f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
+    ).json()
+    logger.info(f"city: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    json_data = jsonable_encoder(response)
+    result = [
+        {
+            "date": i["dt_txt"],
+            "temperature": i["main"]["feels_like"]
+        }
+        for i in json_data["list"]
+    ]
+    return JSONResponse(result)
+
+
+@router.get(
+    "/statistic/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
+)
+async def get_stat_chart_by_city(city: str, units: str = "metric"):
+    """
+    Get weather forecast for next 5 days
+    Return html chart
+    Optional[units]: default = metric
+    metric = Celsius
+    imperial = Fahrenheit
+    """
+    location = geolocator.geocode(city)
+    response = requests.post(
+        f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
+    ).json()
+    logger.info(f"city: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    json_data = jsonable_encoder(response)
+    temp = [i["main"]["feels_like"] for i in json_data["list"]]
+    time = [i["dt_txt"] for i in json_data["list"]]
+    data = {"temperature": temp, "date": time}
+    df = pd.DataFrame(data=data)
+    df["date"] = pd.to_datetime(df.date)
+    # df["time"] = df["time"].dt.strftime("%d/%m/%Y")
+    # fig = px.line(df, x="date", y="temperature", markers=True)
+    fig = px.scatter(df, x="date", y="temperature", trendline="ols")
+    fig.write_html(f"stats/{city}.html")
+    return FileResponse(f"stats/{city}.html")
