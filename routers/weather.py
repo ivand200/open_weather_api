@@ -15,13 +15,14 @@ from fastapi.encoders import jsonable_encoder
 from geopy.geocoders import Nominatim
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 import requests
 import json
 import logging
 from datetime import date, datetime
 
-from schemas.weather import CurrentWeather
+from schemas.weather import CurrentWeather, CityList
 from settings import Settings
 
 
@@ -121,3 +122,35 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     fig = px.scatter(df, x="date", y="temperature", trendline="ols")
     fig.write_html(f"stats/{city}.html")
     return FileResponse(f"stats/{city}.html")
+
+
+@router.get("/map", status_code=status.HTTP_200_OK)
+async def get_weather_map(city_list: CityList, units: str = "metric"):
+    """
+    Get weather bar chart for citites list
+    """
+    cities = tuple(city.name for city in city_list.cities)
+    data = {}
+    for city in cities:
+        location = geolocator.geocode(city)
+        response = requests.post(
+            f"https://api.openweathermap.org/data/2.5/weather?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
+        ).json()
+        data[city] = (
+            location.latitude,
+            location.longitude,
+            response["main"]["feels_like"],
+        )
+    #df = pd.DataFrame.from_dict(data)
+    df = pd.DataFrame.from_dict(
+        data, orient="index", columns=["latitude", "longitude", "temperature"]
+    )
+    df.index.name = "city"
+    fig = px.bar(
+        df,
+        x=df.index,
+        y="temperature",
+        title=f"Current temperature for {[i for i in df.index]}",
+        color=df.index,
+    )
+    return fig.show()
