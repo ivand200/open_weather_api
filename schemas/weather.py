@@ -18,3 +18,14 @@ class CurrentWeather(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class CityBase(BaseModel):
+    name: str 
+
+
+class CityList(BaseModel):
+    cities: Optional[List[CityBase]]
+
+    class Config:
+        orm_mode = True
