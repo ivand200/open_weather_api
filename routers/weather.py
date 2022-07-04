@@ -160,7 +160,9 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
     return FileResponse(f"stats/{[i for i in df.index]}.html")
 
 
-@router.get("/map/cities", response_class=FileResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/map/cities", response_class=FileResponse, status_code=status.HTTP_200_OK
+)
 async def get_cities_map(city_list: CityList, units: str = "metric"):
     """
     Get map with temperature from the list
