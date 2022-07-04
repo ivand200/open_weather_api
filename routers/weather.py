@@ -132,7 +132,7 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
     Get current weather bar chart for citites list
     """
     cities = tuple(city.name for city in city_list.cities)
-    logger.info(f"cities: {cities}")
+    logger.info(f"cities bar chart: {cities}")
     data = {}
     for city in cities:
         location = geolocator.geocode(city)
@@ -158,3 +158,31 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
     # fig.show()
     fig.write_html(f"stats/{[i for i in df.index]}.html")
     return FileResponse(f"stats/{[i for i in df.index]}.html")
+
+
+@router.get("/map/cities", response_class=FileResponse, status_code=status.HTTP_200_OK)
+async def get_cities_map(city_list: CityList, units: str = "metric"):
+    """
+    Get map with temperature from the list
+    """
+    cities = tuple(city.name for city in city_list.cities)
+    logger.info(f"cities map: {cities}")
+    data = {}
+    for city in cities:
+        location = geolocator.geocode(city)
+        response = requests.post(
+            f"https://api.openweathermap.org/data/2.5/weather?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
+        ).json()
+        data[city] = (
+            location.latitude,
+            location.longitude,
+            response["main"]["feels_like"],
+        )
+    df = pd.DataFrame.from_dict(
+        data, orient="index", columns=["latitude", "longitude", "temperature"]
+    )
+    df.index.name = "city"
+    fig = px.scatter_geo(df, lat="latitude", lon="longitude", color=df.index, hover_name=df.index, size="temperature", projection="natural earth")
+    # fig.show()
+    fig.write_html(f"stats/map_{[i for i in df.index]}.html")
+    return FileResponse(f"stats/map_{[i for i in df.index]}.html")
