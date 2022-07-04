@@ -40,6 +40,24 @@ def test_statistic_json_5_days(city):
     assert response.status_code == 200
 
 
+def test_statistic_chart_city_list():
+    """
+    WHEN GET "weather/current/cities" requested
+    THEN check that response is valid
+    """
+    payload = {
+        "cities": [
+            {"name": "London"},
+            {"name": "Tokyo"},
+            {"name": "Shanghai"},
+            {"name": "Hamburg"},
+            {"name": "Mexico"},
+        ]
+    }
+    response = client.get(f"/weather/chart/cities", json=payload)
+    assert response.status_code == 200
+
+
 # @pytest.mark.parametrize("city", test_data_cities)
 # def test_statistic_chart_5_days(city):
 #     """
