@@ -124,12 +124,15 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     return FileResponse(f"stats/{city}.html")
 
 
-@router.get("/map", status_code=status.HTTP_200_OK)
-async def get_weather_map(city_list: CityList, units: str = "metric"):
+@router.get(
+    "/chart/cities", response_class=FileResponse, status_code=status.HTTP_200_OK
+)
+async def get_cities_chart(city_list: CityList, units: str = "metric"):
     """
-    Get weather bar chart for citites list
+    Get current weather bar chart for citites list
     """
     cities = tuple(city.name for city in city_list.cities)
+    logger.info(f"cities: {cities}")
     data = {}
     for city in cities:
         location = geolocator.geocode(city)
@@ -141,7 +144,6 @@ async def get_weather_map(city_list: CityList, units: str = "metric"):
             location.longitude,
             response["main"]["feels_like"],
         )
-    #df = pd.DataFrame.from_dict(data)
     df = pd.DataFrame.from_dict(
         data, orient="index", columns=["latitude", "longitude", "temperature"]
     )
@@ -153,4 +155,6 @@ async def get_weather_map(city_list: CityList, units: str = "metric"):
         title=f"Current temperature for {[i for i in df.index]}",
         color=df.index,
     )
-    return fig.show()
+    # fig.show()
+    fig.write_html(f"stats/{[i for i in df.index]}.html")
+    return FileResponse(f"stats/{[i for i in df.index]}.html")
