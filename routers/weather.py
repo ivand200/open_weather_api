@@ -73,7 +73,7 @@ async def get_current_temperature(city: str, units: str = "metric"):
     return weather
 
 
-@router.get("/statistic/json/{city}", status_code=status.HTTP_200_OK)
+@router.get("/forecast/json/{city}", status_code=status.HTTP_200_OK)
 async def get_stat_json_city(city: str, units: str = "metric"):
     """
     Get weather forecast for next 5 days
@@ -83,7 +83,7 @@ async def get_stat_json_city(city: str, units: str = "metric"):
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    logger.info(f"city: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    logger.info(f"city forecast: {city} | lat: {location.latitude} | lon: {location.longitude}")
     json_data = jsonable_encoder(response)
     result = [
         {
@@ -96,7 +96,7 @@ async def get_stat_json_city(city: str, units: str = "metric"):
 
 
 @router.get(
-    "/statistic/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
+    "/forecast/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
 )
 async def get_stat_chart_by_city(city: str, units: str = "metric"):
     """
@@ -110,7 +110,7 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    logger.info(f"city: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    logger.info(f"city bar chart forecast: {city} | lat: {location.latitude} | lon: {location.longitude}")
     json_data = jsonable_encoder(response)
     temp = [i["main"]["feels_like"] for i in json_data["list"]]
     time = [i["dt_txt"] for i in json_data["list"]]
@@ -119,7 +119,13 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     df["date"] = pd.to_datetime(df.date)
     # df["time"] = df["time"].dt.strftime("%d/%m/%Y")
     # fig = px.line(df, x="date", y="temperature", markers=True)
-    fig = px.scatter(df, x="date", y="temperature", trendline="ols")
+    fig = px.scatter(
+        df,
+        x="date",
+        y="temperature",
+        title=f"Weather forecast for next 5 days for: {city}",
+        trendline="ols"
+    )
     fig.write_html(f"stats/{city}.html")
     return FileResponse(f"stats/{city}.html")
 
@@ -147,7 +153,7 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
     df = pd.DataFrame.from_dict(
         data, orient="index", columns=["latitude", "longitude", "temperature"]
     )
-    df.index.name = "city"
+    # df.index.name = "city"
     fig = px.bar(
         df,
         x=df.index,
@@ -165,7 +171,7 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
 )
 async def get_cities_map(city_list: CityList, units: str = "metric"):
     """
-    Get map with temperature from the list
+    Get map with temperature from the cities list
     """
     cities = tuple(city.name for city in city_list.cities)
     logger.info(f"cities map: {cities}")
@@ -188,3 +194,10 @@ async def get_cities_map(city_list: CityList, units: str = "metric"):
     # fig.show()
     fig.write_html(f"stats/map_{[i for i in df.index]}.html")
     return FileResponse(f"stats/map_{[i for i in df.index]}.html")
+
+
+@router.get("/pollution/forecast/chart/{city}", status_code=status.HTTP_200_OK)
+async def get_pollution_chart(city: str):
+    """
+    Get forecast pollution chart for the city
+    """
