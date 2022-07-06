@@ -31,10 +31,10 @@ def test_current_weather(city):
 @pytest.mark.parametrize("city", test_data_cities)
 def test_statistic_json_5_days(city):
     """
-    WHEN GET "/weather/statistic/json/{city}" requested
+    WHEN GET "/weather/forecast/json/{city}" requested
     THEN check that response is valid
     """
-    response = client.get(f"/weather/statistic/json/{city}")
+    response = client.get(f"/weather/forecast/json/{city}")
     response_body = response.json()
     assert len(response_body) > 5
     assert response.status_code == 200
