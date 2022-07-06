@@ -16,11 +16,12 @@ from geopy.geocoders import Nominatim
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 import requests
 import json
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone, tzinfo
 
 from schemas.weather import CurrentWeather, CityList
 from settings import Settings
@@ -42,6 +43,14 @@ handler.setFormatter(format)
 logger.addHandler(handler)
 
 
+
+def get_local_time(utc):
+    return utc.replace(tzinfo=timezone.utc).astimezone(tz=None)
+
+def get_city(city: str):
+    location = geolocator.geocode(city)
+    return location
+
 def get_today():
     today_raw = date.today()
     return today_raw.strftime("%d-%m-%Y")
@@ -58,7 +67,9 @@ async def get_current_temperature(city: str, units: str = "metric"):
     imperial = Fahrenheit
     """
     location = geolocator.geocode(city)
-    logger.info(f"place: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    logger.info(
+        f"place: {city} | lat: {location.latitude} | lon: {location.longitude}"
+    )
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/weather?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
@@ -83,7 +94,9 @@ async def get_stat_json_city(city: str, units: str = "metric"):
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    logger.info(f"city forecast: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    logger.info(
+        f"city forecast: {city} | lat: {location.latitude} | lon: {location.longitude}"
+    )
     json_data = jsonable_encoder(response)
     result = [
         {
@@ -110,7 +123,9 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    logger.info(f"city bar chart forecast: {city} | lat: {location.latitude} | lon: {location.longitude}")
+    logger.info(
+        f"city bar chart forecast: {city} | lat: {location.latitude} | lon: {location.longitude}"
+    )
     json_data = jsonable_encoder(response)
     temp = [i["main"]["feels_like"] for i in json_data["list"]]
     time = [i["dt_txt"] for i in json_data["list"]]
@@ -124,7 +139,7 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
         x="date",
         y="temperature",
         title=f"Weather forecast for next 5 days for: {city}",
-        trendline="ols"
+        trendline="ols",
     )
     fig.write_html(f"stats/{city}.html")
     return FileResponse(f"stats/{city}.html")
@@ -190,14 +205,52 @@ async def get_cities_map(city_list: CityList, units: str = "metric"):
         data, orient="index", columns=["latitude", "longitude", "temperature"]
     )
     df.index.name = "city"
-    fig = px.scatter_geo(df, lat="latitude", lon="longitude", color=df.index, hover_name=df.index, size="temperature", projection="natural earth")
+    fig = px.scatter_geo(
+        df,
+        lat="latitude",
+        lon="longitude",
+        color=df.index,
+        hover_name=df.index,
+        size="temperature",
+        projection="natural earth",
+    )
     # fig.show()
     fig.write_html(f"stats/map_{[i for i in df.index]}.html")
     return FileResponse(f"stats/map_{[i for i in df.index]}.html")
 
 
-@router.get("/pollution/forecast/chart/{city}", status_code=status.HTTP_200_OK)
+@router.get(
+    "/pollution/forecast/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
+)
 async def get_pollution_chart(city: str):
     """
     Get forecast pollution chart for the city
     """
+    logger.info(f"chart pollution forecast for {city}")
+    loc = get_city(city)
+    response = requests.get(
+        f"http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat={loc.latitude}&lon={loc.longitude}&appid={settings.OPEN_WEATHER_KEY}"
+    ).json()
+    data = [
+        {
+            "date": i["dt"],
+            "CO": i["components"]["co"],
+            "NO2": i["components"]["no2"],
+            "O3": i["components"]["o3"],
+            "SO2": i["components"]["so2"],
+        }
+        for i in response["list"]
+    ]
+    df = pd.DataFrame.from_dict(data)
+    city_name = (loc.raw["display_name"]).split()[0].replace(",", "")
+    fig = make_subplots(rows=2, cols=2, subplot_titles=("CO", "NO2", "O3", "SO2"))
+    fig.add_trace(go.Scatter(x=df["date"], y=df["CO"]), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df["date"], y=df["NO2"]), row=1, col=2)
+    fig.add_trace(go.Scatter(x=df["date"], y=df["O3"]), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df["date"], y=df["SO2"]), row=2, col=2)
+    fig.update_layout(
+        height=700, width=1400, title_text=f"Air pollution forecast for {city_name}"
+    )
+    # fig.show()
+    fig.write_html(f"stats/pollution_{city_name}.html")
+    return FileResponse(f"stats/pollution_{city_name}.html")
