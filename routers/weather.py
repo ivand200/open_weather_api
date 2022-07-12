@@ -26,13 +26,12 @@ from datetime import date, datetime, timezone, tzinfo
 from schemas.weather import CurrentWeather, CityList
 from settings import Settings
 
+settings = Settings()
 
 geolocator = Nominatim(user_agent="weather_app")
 
 router = APIRouter()
 
-
-settings = Settings()
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -43,10 +42,6 @@ handler.setFormatter(format)
 logger.addHandler(handler)
 
 
-
-def get_local_time(utc):
-    return utc.replace(tzinfo=timezone.utc).astimezone(tz=None)
-
 def get_city(city: str):
     location = geolocator.geocode(city)
     return location
@@ -54,6 +49,11 @@ def get_city(city: str):
 def get_today():
     today_raw = date.today()
     return today_raw.strftime("%d-%m-%Y")
+
+
+@router.get("/test")
+def test_heroku():
+    return {"Heroku": "deploy"}
 
 
 @router.get(
