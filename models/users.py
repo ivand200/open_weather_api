@@ -22,3 +22,10 @@ class Item(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="items")
+
+
+class Blacklist(Base):
+    __tablename__ = "blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True)
