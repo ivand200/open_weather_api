@@ -64,7 +64,7 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user
     """
-    logger.infp(f"SignUp a new user: {user.login}")
+    logger.info(f"SignUp a new user: {user.login}")
     user_db = db.query(User).filter(User.login == user.login).first()
     if user_db:
         raise HTTPException(status_code=400, detail="Login already exists.")
@@ -95,11 +95,11 @@ async def exit_user(
     """
     User logout
     """
-    token = decodeJWT(token)
-    if not token:
+    token_jwt = decodeJWT(token)
+    if not token_jwt:
         raise HTTPException(status_code=401, detail="Access denied")
     token_blacklist = Blacklist(token=token)
-    logger.info(f"User logout: {token['user_id']}")
+    logger.info(f"User logout: {token_jwt['user_id']}")
     db.add(token_blacklist)
     db.commit()
     return True
@@ -116,10 +116,11 @@ async def create_item(
     """
     Create a item
     """
-    logging.info(f"Create a item: {item}")
+    blacklist = blacklist_check(token)
     token_jwt = decodeJWT(token)
     if not token_jwt:
         raise HTTPException(status_code=401, detail="Access denied")
+    logging.info(f"Create a item: {item}")
     new_item = Item(title=item.title, user_id=item.user_id)
     db.add(new_item)
     db.commit()
