@@ -4,11 +4,11 @@ from pydantic import BaseModel, validator, Field
 
 
 class UserBase(BaseModel):
-    login: str 
+    login: str
 
 
 class UserCreate(UserBase):
-    password: str 
+    password: str
 
     @validator("password")
     def valid_password(cls, value):
@@ -30,7 +30,7 @@ class UserPublic(UserBase):
 
 class ItemBase(BaseModel):
     title: str
-    user_id: int 
+    user_id: int
 
 
 class ItemCreate(ItemBase):
