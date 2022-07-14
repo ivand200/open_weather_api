@@ -111,7 +111,8 @@ def test_login_wrong_pass(get_user, get_user_with_bad_password):
 
 def test_logout(get_token, get_user):
     """
-    TODO: ...
+    WHEN "users/logout" POST
+    THEN check response is valid
     """
     token = get_token
     response = client.post("users/logout", headers={"token": token})
@@ -121,6 +122,24 @@ def test_logout(get_token, get_user):
         conn.exec_driver_sql("DELETE FROM blacklist WHERE token=(%(val)s)",[{"val": token}])
         conn.exec_driver_sql("DELETE FROM users WHERE login=(%(val)s)", [{"val": get_user["login"]}])
 
+
+def test_blacklist(user_signup):
+    """
+    WHEN "users/items/new" POST
+    after logout
+    Theck check impossible to post with token from blacklist
+    """
+    result = user_signup.json()
+    token = result["access_token"]
+    response_logout = client.post("users/logout", headers={"token": token})
+    assert response_logout.status_code == 204
+
+    response_create_item = client.post("users/items/new", headers={"token": token}, json={"title": "first"})
+    response_create_item.status_code == 401
+
+    with engine.connect().execution_options(autocommit=True) as conn:
+        conn.exec_driver_sql("DELETE FROM users WHERE login=(%(val)s)", [{"val": "user_test@example.com"}])
+        conn.exec_driver_sql("DELETE FROM blacklist WHERE token=(%(val)s)", [{"val": token}])
 
 
 

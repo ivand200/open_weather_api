@@ -11,6 +11,7 @@ from schemas.users import (
     UserCreate,
     UserPublic,
     UserPublic,
+    ItemBase,
     ItemCreate,
     ItemPublic,
     UserItems,
@@ -109,19 +110,20 @@ async def exit_user(
     "/items/new", response_model=ItemPublic, status_code=status.HTTP_201_CREATED
 )
 async def create_item(
-    item: ItemCreate,
+    item: ItemBase,
     db: Session = Depends(get_db),
     token: str = Depends(api_key_header),
 ):
     """
     Create a item
     """
-    blacklist = blacklist_check(token)
+    blacklist = blacklist_check(token, db)
     token_jwt = decodeJWT(token)
     if not token_jwt:
         raise HTTPException(status_code=401, detail="Access denied")
     logging.info(f"Create a item: {item}")
-    new_item = Item(title=item.title, user_id=item.user_id)
+    user_db = db.query(User).filter(User.login == token_jwt["user_id"]).first()
+    new_item = Item(title=item.title, user_id=user_db.id)
     db.add(new_item)
     db.commit()
     db.refresh(new_item)
@@ -191,9 +193,8 @@ async def send_item(
     logging.info(f"Item transfer from user: {user.login}, item: {item.id}")
     user_login_jwt = transferJWT(user_login)
     user_token = user_login_jwt.decode("utf-8")
-    return user_token
-    # url = f"{settings.BACKEND_URL}/{user_token}/{item_id}"
-    # return url
+    url = f"{settings.BACKEND_URL}/{user_token}/{item_id}"
+    return url
 
 
 @router.get("/{user_token}/{item_id}", status_code=status.HTTP_200_OK)
@@ -209,7 +210,7 @@ async def get_transfer(
     token = decodeJWT(token)
     if not token:
         raise HTTPException(status_code=401, detail="Access denied")
-    logging.ingo(f"Get item transfer, item: {item_id}, user: {token['user_id']}")
+    logging.info(f"Get item transfer, item: {item_id}, user: {token['user_id']}")
     user = db.query(User).filter(User.login == token["user_id"]).first()
     check_user_token = decodeJWT(user_token)
     if not user or check_user_token["user_id"] != user.login:
