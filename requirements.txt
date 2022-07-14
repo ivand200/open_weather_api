@@ -12,6 +12,8 @@ email-validator==1.2.1
 pandas==1.4.3
 plotly==5.9.0
 statsmodels==0.13.2
+PyJWT==1.7.1
+passlib==1.7.4
 
 celery==5.2.7
 redis==4.3.4 
