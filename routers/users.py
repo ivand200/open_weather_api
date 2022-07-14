@@ -191,8 +191,9 @@ async def send_item(
     logging.info(f"Item transfer from user: {user.login}, item: {item.id}")
     user_login_jwt = transferJWT(user_login)
     user_token = user_login_jwt.decode("utf-8")
-    url = f"{settings.BACKEND_URL}/{user_token}/{item_id}"
-    return url
+    return user_token
+    # url = f"{settings.BACKEND_URL}/{user_token}/{item_id}"
+    # return url
 
 
 @router.get("/{user_token}/{item_id}", status_code=status.HTTP_200_OK)
