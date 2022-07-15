@@ -111,7 +111,8 @@ def test_login_wrong_pass(get_user, get_user_with_bad_password):
 
 def test_logout(get_token, get_user):
     """
-    TODO: ...
+    WHEN "users/logout" POST
+    THEN check response is valid
     """
     token = get_token
     response = client.post("users/logout", headers={"token": token})
@@ -124,7 +125,9 @@ def test_logout(get_token, get_user):
 
 def test_blacklist(user_signup):
     """
-    TODO: ...
+    WHEN "users/items/new" POST
+    after logout
+    Theck check impossible to post with token from blacklist
     """
     result = user_signup.json()
     token = result["access_token"]
