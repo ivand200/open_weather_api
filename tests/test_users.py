@@ -136,6 +136,7 @@ def test_blacklist(user_signup):
 
     with engine.connect().execution_options(autocommit=True) as conn:
         conn.exec_driver_sql("DELETE FROM users WHERE login=(%(val)s)", [{"val": "user_test@example.com"}])
+        conn.exec_driver_sql("DELETE FROM blacklist WHERE token=(%(val)s)", [{"val": token}])
 
 
 
