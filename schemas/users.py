@@ -30,11 +30,16 @@ class UserPublic(UserBase):
 
 class ItemBase(BaseModel):
     title: str
-    user_id: int
+
+    class Config:
+        orm_mode = True
 
 
 class ItemCreate(ItemBase):
-    pass
+    user_id: int
+
+    class Config:
+        orm_mode = True
 
 
 class ItemPublic(ItemBase):
