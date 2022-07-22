@@ -11,6 +11,8 @@ class CurrentWeather(BaseModel):
     temperature: float
     wind: float
     description: str
+    humidity: float 
+    pressure: float
 
     # @validator("today", pre=True)
     # def check_today_date(cls, value):  # YYYY-MM-DD

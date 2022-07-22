@@ -46,12 +46,10 @@ def test_current_weather(city):
 @pytest.mark.parametrize("city", test_data_cities)
 def test_statistic_json_5_days(city):
     """
-    WHEN GET "/weather/forecast/json/{city}" requested
+    WHEN GET "/weather/forecast/{city}" requested
     THEN check that response is valid
     """
-    response = client.get(f"/weather/forecast/json/{city}")
-    response_body = response.json()
-    assert len(response_body) > 5
+    response = client.get(f"/weather/forecast/{city}")
     assert response.status_code == 200
 
 
@@ -61,16 +59,6 @@ def test_current_chart_city_list(list_cities):
     THEN check that response is valid
     """
     response = client.get(f"/weather/chart/cities", json=list_cities)
-    assert response.status_code == 200
-
-
-@pytest.mark.parametrize("city", test_data_cities)
-def test_forecast_chart(city):
-    """
-    WHEN GET "weather/forecast/chart/{city}" request
-    THEN check that response is valid
-    """
-    response = client.get(f"/weather/forecast/chart/{city}")
     assert response.status_code == 200
 
 
@@ -89,6 +77,6 @@ def test_pollution_forecast(city):
     WHEN GET "weather/pollution/forecast/chart/{city}" requested
     THEN check that response is valid
     """
-    response = client.get(f"/weather/pollution/forecast/chart/{city}")
+    response = client.get(f"/weather/pollution/forecast/{city}")
     assert response.status_code == 200
 
