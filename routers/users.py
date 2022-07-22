@@ -25,7 +25,7 @@ settings = Settings()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("%(asctime)s - %(message)s")
