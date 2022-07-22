@@ -33,83 +33,78 @@ geolocator = Nominatim(user_agent="weather_app")
 router = APIRouter()
 
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger_weather = logging.getLogger(__name__)
+logger_weather.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
-format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(format)
-logger.addHandler(handler)
+logger_weather.addHandler(handler)
 
 
 def get_city(city: str):
     location = geolocator.geocode(city)
     return location
 
+
 def get_today():
     today_raw = date.today()
     return today_raw.strftime("%d-%m-%Y")
 
 
-@router.get("/test")
-def test_heroku():
-    return {"Heroku": "deploy"}
-
-
 @router.get(
-    "/current/{city}", response_model=CurrentWeather, status_code=status.HTTP_200_OK
+    "/current/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
 )
-async def get_current_temperature(city: str, units: str = "metric"):
+async def get_current(city: str, units: str = "metric"):
     """
-    Get current weather by city
-    Optional[units]: default = metric
-    metric = Celsius
-    imperial = Fahrenheit
+    Get table with current weather
     """
-    location = geolocator.geocode(city)
-    logger.info(
+    location = get_city(city)
+    logger_weather.info(
         f"place: {city} | lat: {location.latitude} | lon: {location.longitude}"
     )
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/weather?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    data = jsonable_encoder(response)
-    weather = CurrentWeather(
-        place=data["name"],
-        today=get_today(),
-        temperature=data["main"]["feels_like"],
-        description=data["weather"][0]["description"],
-        wind=data["wind"]["speed"],
-    )
-    return weather
-
-
-@router.get("/forecast/json/{city}", status_code=status.HTTP_200_OK)
-async def get_stat_json_city(city: str, units: str = "metric"):
-    """
-    Get weather forecast for next 5 days
-    with every 3 hours
-    """
-    location = geolocator.geocode(city)
-    response = requests.post(
-        f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
-    ).json()
-    logger.info(
-        f"city forecast: {city} | lat: {location.latitude} | lon: {location.longitude}"
-    )
     json_data = jsonable_encoder(response)
-    result = [
+    temp_data = [
         {
-            "date": i["dt_txt"],
-            "temperature": i["main"]["feels_like"]
+            "temp": json_data["main"]["temp"],
+            "feels_like": json_data["main"]["feels_like"],
+            "min_temp": json_data["main"]["temp_min"],
+            "max_temp": json_data["main"]["temp_max"],
+            "humidity": json_data["main"]["humidity"],
+            "pressure": json_data["main"]["pressure"],
         }
-        for i in json_data["list"]
     ]
-    return JSONResponse(result)
+    df = pd.DataFrame.from_dict(temp_data)
+    fig = go.Figure(
+        data=[
+            go.Table(
+                header=dict(
+                    values=list(df.columns), fill_color="paleturquoise", align="left"
+                ),
+                cells=dict(
+                    values=[
+                        df.temp,
+                        df.feels_like,
+                        df.min_temp,
+                        df.max_temp,
+                        df.humidity,
+                        df.pressure,
+                    ],
+                    fill_color="lavender",
+                    align="left",
+                ),
+            )
+        ]
+    )
+    fig.write_html(f"stats/current_{city}.html")
+    return FileResponse(f"stats/current_{city}.html")
 
 
 @router.get(
-    "/forecast/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
+    "/forecast/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
 )
 async def get_stat_chart_by_city(city: str, units: str = "metric"):
     """
@@ -123,7 +118,7 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
     response = requests.post(
         f"https://api.openweathermap.org/data/2.5/forecast?lat={location.latitude}&lon={location.longitude}&units={units}&appid={settings.OPEN_WEATHER_KEY}"
     ).json()
-    logger.info(
+    logger_weather.info(
         f"city bar chart forecast: {city} | lat: {location.latitude} | lon: {location.longitude}"
     )
     json_data = jsonable_encoder(response)
@@ -141,8 +136,8 @@ async def get_stat_chart_by_city(city: str, units: str = "metric"):
         title=f"Weather forecast for next 5 days for: {city}",
         trendline="ols",
     )
-    fig.write_html(f"stats/{city}.html")
-    return FileResponse(f"stats/{city}.html")
+    fig.write_html(f"stats/forecast_{city}.html")
+    return FileResponse(f"stats/forecast_{city}.html")
 
 
 @router.get(
@@ -153,7 +148,7 @@ async def get_cities_chart(city_list: CityList, units: str = "metric"):
     Get current weather bar chart for citites list
     """
     cities = tuple(city.name for city in city_list.cities)
-    logger.info(f"cities bar chart: {cities}")
+    logger_weather.info(f"cities bar chart: {cities}")
     data = {}
     for city in cities:
         location = geolocator.geocode(city)
@@ -189,7 +184,7 @@ async def get_cities_map(city_list: CityList, units: str = "metric"):
     Get map with temperature from the cities list
     """
     cities = tuple(city.name for city in city_list.cities)
-    logger.info(f"cities map: {cities}")
+    logger_weather.info(f"cities map: {cities}")
     data = {}
     for city in cities:
         location = geolocator.geocode(city)
@@ -220,13 +215,13 @@ async def get_cities_map(city_list: CityList, units: str = "metric"):
 
 
 @router.get(
-    "/pollution/forecast/chart/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
+    "/pollution/forecast/{city}", response_class=FileResponse, status_code=status.HTTP_200_OK
 )
 async def get_pollution_chart(city: str):
     """
     Get forecast pollution chart for the city
     """
-    logger.info(f"chart pollution forecast for {city}")
+    logger_weather.info(f"chart pollution forecast for {city}")
     loc = get_city(city)
     response = requests.get(
         f"http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat={loc.latitude}&lon={loc.longitude}&appid={settings.OPEN_WEATHER_KEY}"
