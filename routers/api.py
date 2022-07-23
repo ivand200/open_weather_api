@@ -87,3 +87,26 @@ async def get_stat_json_city(city: str, units: str = "metric"):
         for i in json_data["list"]
     ]
     return JSONResponse(result)
+
+
+@router.get("/pollution/{city}", status_code=status.HTTP_200_OK)
+async def get_pollution(city: str):
+    """
+    Get pollution forecast for the city
+    """
+    location = get_city(city)
+    logger_api.info(f"Pollution forecast for {city}")
+    response = requests.get(
+        f"http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat={location.latitude}&lon={location.longitude}&appid={settings.OPEN_WEATHER_KEY}"
+    ).json()
+    data = [
+        {
+            "date": i["dt"],
+            "CO": i["components"]["co"],
+            "NO2": i["components"]["no2"],
+            "O3": i["components"]["o3"],
+            "SO2": i["components"]["so2"],
+        }
+        for i in response["list"]
+    ]
+    return JSONResponse(data)

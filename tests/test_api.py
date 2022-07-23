@@ -33,3 +33,15 @@ def test_statistic_json_5_days(city):
     response_body = response.json()
     assert len(response_body) > 5
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("city", test_data_cities)
+def test_pollution_city(city):
+    """
+    WHEN GET "api/v1/pollution/{city}"
+    THEN check that response is valid
+    """
+    response = client.get(f"/api/v1/pollution/{city}")
+    response_body = response.json()
+    assert len(response_body) > 5
+    assert response.status_code == 200
